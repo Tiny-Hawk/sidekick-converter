@@ -95,7 +95,7 @@ private:
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[SidekickConverter] color scheme apply failed (code %d): %s"), ReturnCode, *StdErr);
+			UE_LOG(LogTemp, Warning, TEXT("[SidekickConverter] color schemes not applied this run (code %d); kept for the next startup. %s"), ReturnCode, *StdErr);
 		}
 	}
 

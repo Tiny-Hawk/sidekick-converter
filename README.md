@@ -88,6 +88,11 @@ dependency.
 
 ## Use
 
+On a project's first conversion, open the Sidekick Character Tool and create at least one
+preset before converting. That first use is what creates the toolkit's color database, which
+the converter writes each pack's colors into. Parts always convert; colors only register once
+that database exists.
+
 1. **Tools → Sidekick Converter**.
 2. Confirm the three dependency lines are green.
 3. **Browse** to one or more pack `.unitypackage` files.

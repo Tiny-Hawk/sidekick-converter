@@ -185,31 +185,34 @@ def register(db_path, schemes, attempts=90, delay_seconds=2):
 def main():
     global LOG_PATH
     if len(sys.argv) < 3:
-        return
+        return 1
     manifest_path, db_path = sys.argv[1], sys.argv[2]
     LOG_PATH = os.path.join(os.path.dirname(manifest_path), "db_register.log")
     try:
         schemes = read_manifest(manifest_path)
         if not schemes:
             log("no schemes in manifest; nothing to do")
-            return
+            return 0
         # Insert in name order so the toolkit, which lists presets by insertion order, shows
         # them sorted (01, 02, 03, ...) like a native pack.
         schemes.sort(key=lambda item: item[0])
         if not os.path.isfile(db_path):
-            log("database not found: %s" % db_path)
-            return
+            # The toolkit creates this database the first time it runs, so on a project that
+            # has never opened it the file is not there yet. A nonzero exit keeps the caller
+            # from deleting the manifest, so a later startup applies it once the file exists.
+            log("database not found, leaving schemes for a later startup: %s" % db_path)
+            return 1
         decoded = []
         for name, png_path in schemes:
             with open(png_path, "rb") as handle:
                 _, _, pixels = decode_png(handle.read())
             decoded.append((name, pixels))
-        register(db_path, decoded)
+        return 0 if register(db_path, decoded) else 1
     except Exception as error:
         log("ERROR: " + repr(error))
         log(traceback.format_exc())
-        raise
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
