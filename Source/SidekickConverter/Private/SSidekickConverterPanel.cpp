@@ -24,7 +24,7 @@
 
 namespace
 {
-	const FName SidekickConverterTabName(TEXT("SidekickConverter"));
+	const FName ConverterTabName(TEXT("SidekickConverter"));
 	const TCHAR* PartsFolder = TEXT("/Game/Synty/SidekickCharacters/Resources/Meshes/Outfits");
 	const TCHAR* DefaultSkeleton = TEXT("/Game/Synty/SidekickCharacters/Resources/Skeletons/SKEL_Default_Sidekick");
 	const TCHAR* DefaultReference = TEXT("/Game/Synty/SidekickCharacters/Resources/Meshes/Species/Humans/SK_HUMN_BASE_01_10TORS_HU01");
@@ -382,7 +382,7 @@ FReply SSidekickConverterPanel::OnShowInContentBrowserClicked()
 
 FReply SSidekickConverterPanel::OnCloseClicked()
 {
-	const TSharedPtr<SDockTab> Tab = FGlobalTabmanager::Get()->FindExistingLiveTab(FTabId(SidekickConverterTabName));
+	const TSharedPtr<SDockTab> Tab = FGlobalTabmanager::Get()->FindExistingLiveTab(FTabId(ConverterTabName));
 	if (Tab.IsValid())
 	{
 		Tab->RequestCloseTab();
