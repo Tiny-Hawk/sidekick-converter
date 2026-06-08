@@ -9,6 +9,8 @@ for Unreal.
 Point it at a pack's `.unitypackage`, click Convert, and the parts land in your project
 ready to use.
 
+![The Sidekick Converter panel converting a pack in-editor](docs/panel.png)
+
 ## Why this exists
 
 Synty releases some Sidekick packs (Modern Civilians, for example) as Unity packages
@@ -104,6 +106,8 @@ that database exists.
 
 Converted parts are written under
 `/Game/Synty/SidekickCharacters/Resources/Meshes/Outfits/<PackName>/`.
+
+![Converted Modern Civilians parts selectable in the Sidekick Character Creator](docs/toolkit.png)
 
 ## Colors
 
