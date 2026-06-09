@@ -82,11 +82,12 @@ dependency.
 
 ## Install
 
-1. Copy the `SidekickConverter` folder into your project's `Plugins` directory
-   (`Source`, `Python`, and the `.uplugin`; the build produces `Binaries` and
-   `Intermediate`).
-2. Regenerate project files and build the editor target, or open the project and let
-   it compile the module when prompted.
+1. Download `SidekickConverter.zip` from the
+   [Releases page](https://github.com/Tiny-Hawk/sidekick-converter/releases) and extract it.
+2. Copy the extracted `SidekickConverter` folder into your project's `Plugins` directory
+   (create `Plugins` if it isn't there).
+3. Open the project and accept the prompt to rebuild the module, or build the editor target
+   yourself. The build generates `Binaries` and `Intermediate`.
 
 ## Use
 
