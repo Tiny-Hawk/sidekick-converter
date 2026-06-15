@@ -9,6 +9,8 @@ for Unreal.
 Point it at a pack's `.unitypackage`, click Convert, and the parts land in your project
 ready to use.
 
+**Video walkthrough:** https://youtu.be/g5A5BOZOPKc
+
 ![The Sidekick Converter panel converting a pack in-editor](docs/panel.png)
 
 ## Why this exists
