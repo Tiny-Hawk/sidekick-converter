@@ -1,16 +1,15 @@
 """Register a converted pack's color schemes into the Sidekick toolkit database.
 
-It runs under Unreal's bundled standalone Python, launched by the plugin's module at editor
-startup, before the Sidekick toolkit opens the database. Once the toolkit opens it, it holds
-the connection for the rest of the session and refuses every other write, so startup is the
-only point at which these rows can be written. The write retries with a fresh connection a few
-times to ride out transient timing during startup.
+Runs under Unreal's bundled standalone Python. The write needs the database unlocked, and the
+toolkit holds the connection while its window is open, so the plugin runs this either right
+after a conversion with the toolkit closed, or at editor startup before the toolkit opens the
+file. It retries with a fresh connection to ride out timing.
 
 For each scheme it writes one Outfits preset and one Attachments preset for the Human species,
-each with a row per swatch property colored from the scheme's ColorMap atlas, the same rows
-Synty's own packs ship. Idempotent: a re-run replaces a scheme rather than duplicating it.
+each with a row per swatch property colored from the scheme's ColorMap atlas. Idempotent: a
+re-run replaces a scheme rather than duplicating it.
 
-  python register_color_schemes.py <manifest> <database>
+  python register_color_schemes.py <manifest> <database> [attempts] [delay_seconds]
 
 The manifest is one "scheme name<TAB>colormap.png" line per scheme.
 """
@@ -150,9 +149,8 @@ def write_schemes(connection, schemes):
 
 
 def register(db_path, schemes, attempts=90, delay_seconds=2):
-    """Retry the whole write with a fresh connection each time. This runs at startup, before the
-    toolkit opens and locks the database for the session; the retries only ride out transient
-    timing during startup, discarding a connection that opens read-only and trying again."""
+    """Retry the whole write with a fresh connection each time, to ride out the database being
+    locked by the toolkit. A connection that opens read-only is discarded and retried."""
     shutil.copy2(db_path, db_path + ".bak")
     last_error = None
     for attempt in range(1, attempts + 1):
@@ -187,6 +185,8 @@ def main():
     if len(sys.argv) < 3:
         return 1
     manifest_path, db_path = sys.argv[1], sys.argv[2]
+    attempts = int(sys.argv[3]) if len(sys.argv) > 3 else 90
+    delay_seconds = float(sys.argv[4]) if len(sys.argv) > 4 else 2
     LOG_PATH = os.path.join(os.path.dirname(manifest_path), "db_register.log")
     try:
         schemes = read_manifest(manifest_path)
@@ -207,7 +207,7 @@ def main():
             with open(png_path, "rb") as handle:
                 _, _, pixels = decode_png(handle.read())
             decoded.append((name, pixels))
-        return 0 if register(db_path, decoded) else 1
+        return 0 if register(db_path, decoded, attempts, delay_seconds) else 1
     except Exception as error:
         log("ERROR: " + repr(error))
         log(traceback.format_exc())

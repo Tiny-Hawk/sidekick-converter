@@ -30,10 +30,9 @@ class FSidekickConverterModule : public IModuleInterface
 public:
 	virtual void StartupModule() override
 	{
-		// The toolkit's database subsystem holds Synty_Sidekick.db open for the whole session
-		// and can't be made to release it, so a conversion can't write its color schemes in.
-		// It leaves them in a manifest instead, and this applies them here at module load,
-		// before that subsystem initializes and opens the file.
+		// Fallback for color schemes a conversion could not write live (the toolkit was open and
+		// holding the database). They wait in a manifest; this applies them at module load, before
+		// the toolkit opens the file, and removes the manifest once applied.
 		ApplyPendingColorSchemes();
 
 		RegisterStyle();

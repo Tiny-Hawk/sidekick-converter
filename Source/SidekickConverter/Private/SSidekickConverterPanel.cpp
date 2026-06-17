@@ -19,7 +19,6 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
-#include "Misc/MessageDialog.h"
 #include "UnrealEdMisc.h"
 
 namespace
@@ -97,7 +96,38 @@ void SSidekickConverterPanel::Construct(const FArguments& InArgs)
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 8, 0, 2)
 			[ SNew(SProgressBar).Percent(this, &SSidekickConverterPanel::GetProgressFraction) ]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2)
-			[ SNew(STextBlock).Text(this, &SSidekickConverterPanel::GetStatusText) ]
+			[
+				SNew(STextBlock)
+				.Text(this, &SSidekickConverterPanel::GetStatusText)
+				.ColorAndOpacity(this, &SSidekickConverterPanel::GetStatusColor)
+				.AutoWrapText(true)
+			]
+
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 0)
+			[
+				SNew(SHorizontalBox)
+				.Visibility(this, &SSidekickConverterPanel::GetColorActionVisibility)
+				+ SHorizontalBox::Slot().FillWidth(1.0f).Padding(0, 0, 4, 0)
+				[
+					SNew(SButton).HAlign(HAlign_Center)
+					.Text(FText::FromString(TEXT("Try Again")))
+					.ToolTipText(FText::FromString(TEXT("Write the colors now. Close the Sidekick Character Creator first if it is open.")))
+					.OnClicked(this, &SSidekickConverterPanel::OnTryColorsAgainClicked)
+				]
+				+ SHorizontalBox::Slot().FillWidth(1.0f).Padding(4, 0)
+				[
+					SNew(SButton).HAlign(HAlign_Center)
+					.Text(FText::FromString(TEXT("Restart Now")))
+					.OnClicked(this, &SSidekickConverterPanel::OnRestartNowClicked)
+				]
+				+ SHorizontalBox::Slot().FillWidth(1.0f).Padding(4, 0, 0, 0)
+				[
+					SNew(SButton).HAlign(HAlign_Center)
+					.Text(FText::FromString(TEXT("Restart Later")))
+					.ToolTipText(FText::FromString(TEXT("Leave the colors for the next editor startup.")))
+					.OnClicked(this, &SSidekickConverterPanel::OnRestartLaterClicked)
+				]
+			]
 
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 0)
 			[
@@ -215,6 +245,11 @@ FText SSidekickConverterPanel::GetStatusText() const
 	return StatusText;
 }
 
+FSlateColor SSidekickConverterPanel::GetStatusColor() const
+{
+	return bColorsLocked ? FSlateColor(FLinearColor(0.95f, 0.7f, 0.2f)) : FSlateColor::UseForeground();
+}
+
 EVisibility SSidekickConverterPanel::GetConvertVisibility() const
 {
 	return State == EJobState::Done ? EVisibility::Collapsed : EVisibility::Visible;
@@ -223,6 +258,11 @@ EVisibility SSidekickConverterPanel::GetConvertVisibility() const
 EVisibility SSidekickConverterPanel::GetCompletionVisibility() const
 {
 	return State == EJobState::Done ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility SSidekickConverterPanel::GetColorActionVisibility() const
+{
+	return (State == EJobState::Done && bColorsLocked) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FReply SSidekickConverterPanel::OnConvertClicked()
@@ -268,6 +308,7 @@ FReply SSidekickConverterPanel::OnConvertClicked()
 
 	State = EJobState::Converting;
 	bSawDone = false;
+	bColorsLocked = false;
 	ProgressFraction = -1.0f;
 	StatusText = FText::FromString(TEXT("Launching converter..."));
 	PollHandle = FTSTicker::GetCoreTicker().AddTicker(
@@ -325,49 +366,95 @@ void SSidekickConverterPanel::FinishJob(bool bSuccess)
 	}
 	State = EJobState::Done;
 	ProgressFraction = bSuccess ? 1.0f : 0.0f;
-	StatusText = FText::FromString(bSuccess
-		? TEXT("Conversion complete. Restart the editor to load the pack's colors.")
-		: TEXT("Conversion ended early. Check the log."));
 
 	FAssetRegistryModule& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	AssetRegistry.Get().ScanPathsSynchronous({ PartsFolder }, true);
 
-	if (bSuccess)
+	if (!bSuccess)
 	{
-		PromptRestartToApplyColors();
+		StatusText = FText::FromString(TEXT("Conversion ended early. Check the log."));
+		return;
 	}
+
+	bColorsLocked = !ApplyColorsNow();
+	StatusText = FText::FromString(bColorsLocked
+		? TEXT("Parts are in. The colors couldn't be written because the Sidekick Character Creator is open and holding the database. Close it and Try Again, or use Restart. On Character Creator versions before 0.4.1, closing it won't free the database, so use Restart.")
+		: TEXT("Conversion complete. Parts and colors are in."));
 }
 
-void SSidekickConverterPanel::PromptRestartToApplyColors()
+bool SSidekickConverterPanel::ApplyColorsNow()
 {
-	// The Sidekick toolkit holds the color database open for the whole session and never
-	// releases it (a bug in its CloseDatabase), so the schemes can only be written before the
-	// toolkit opens the file, at editor startup. The converter left them in a manifest; this
-	// offers to restart the editor, which reopens this same project and applies them on the
-	// way up. See the converter's startup hook and the README's Limitations section.
 	const FString Manifest = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("SidekickConverter"), TEXT("schemes.txt"));
 	if (!FPaths::FileExists(Manifest))
 	{
-		return;
+		return true;
 	}
-	const EAppReturnType::Type Choice = FMessageDialog::Open(
-		EAppMsgType::YesNo,
-		FText::FromString(TEXT(
-			"Conversion complete.\n\n"
-			"The pack's colors are ready, but the Sidekick toolkit only loads color schemes when "
-			"the editor starts. To finish, the editor needs to restart. This reopens the same "
-			"project; you'll be prompted to save any unsaved work first.\n\n"
-			"Restart now to load the colors?")));
-	if (Choice == EAppReturnType::Yes)
+	const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("SidekickConverter"));
+	if (!Plugin.IsValid())
 	{
-		FUnrealEdMisc::Get().RestartEditor(true);
+		return false;
 	}
+	const FString PythonExe = FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries"), TEXT("ThirdParty"), TEXT("Python3"), TEXT("Win64"), TEXT("python.exe"));
+	const FString Registrar = FPaths::Combine(Plugin->GetBaseDir(), TEXT("Python"), TEXT("register_color_schemes.py"));
+	const FString Database = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("Synty/SidekickCharacters/Database/Synty_Sidekick.db"));
+	if (!FPaths::FileExists(PythonExe) || !FPaths::FileExists(Registrar))
+	{
+		return false;
+	}
+
+	// Short retry: with the editor open, a failure means the toolkit is holding the database,
+	// so fail fast and let the user free it rather than blocking the UI for the startup-length wait.
+	const FString Args = FString::Printf(TEXT("\"%s\" \"%s\" \"%s\" 4 1"), *Registrar, *Manifest, *Database);
+	int32 ReturnCode = -1;
+	FString StdOut, StdErr;
+	FPlatformProcess::ExecProcess(*PythonExe, *Args, &ReturnCode, &StdOut, &StdErr);
+	if (ReturnCode == 0)
+	{
+		IFileManager::Get().Delete(*Manifest);
+		return true;
+	}
+	return false;
+}
+
+FReply SSidekickConverterPanel::OnTryColorsAgainClicked()
+{
+	StatusText = FText::FromString(TEXT("Trying again..."));
+	// Defer the write one tick so "Trying again..." paints first; the registrar briefly blocks
+	// the game thread, so without this the panel would just freeze with no feedback.
+	FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateSP(this, &SSidekickConverterPanel::RunColorRetry), 0.05f);
+	return FReply::Handled();
+}
+
+bool SSidekickConverterPanel::RunColorRetry(float /*DeltaTime*/)
+{
+	bColorsLocked = !ApplyColorsNow();
+	StatusText = FText::FromString(bColorsLocked
+		? TEXT("Still locked. Close the Sidekick Character Creator and Try Again, or use Restart. On Character Creator versions before 0.4.1, closing it won't free the database, so Restart is the only way.")
+		: TEXT("Colors applied."));
+	return false;
+}
+
+FReply SSidekickConverterPanel::OnRestartNowClicked()
+{
+	FUnrealEdMisc::Get().RestartEditor(true);
+	return FReply::Handled();
+}
+
+FReply SSidekickConverterPanel::OnRestartLaterClicked()
+{
+	// The schemes stay in the manifest; the module applies them at the next startup, before the
+	// toolkit opens the database.
+	bColorsLocked = false;
+	StatusText = FText::FromString(TEXT("Colors will apply the next time the editor starts."));
+	return FReply::Handled();
 }
 
 FReply SSidekickConverterPanel::OnConvertAnotherClicked()
 {
 	PackagePaths.Reset();
 	State = EJobState::Idle;
+	bColorsLocked = false;
 	ProgressFraction = 0.0f;
 	StatusText = FText::FromString(TEXT("Idle."));
 	return FReply::Handled();

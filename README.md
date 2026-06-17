@@ -69,7 +69,9 @@ single readout.
 ## Requirements
 
 - Unreal Engine 5.7, C++ project (the plugin has a C++ module).
-- The Synty Sidekick Character Tool installed in the project.
+- The Synty Sidekick Character Tool installed in the project. Version 0.4.1 or newer applies a
+  pack's colors without an editor restart; on older versions they fall back to a restart (see
+  [Limitations](#limitations)).
 - A Sidekick pack that includes the base resources (the free Starter pack does). The
   converter conforms onto, and reads its shared material from, these assets:
   - `/Game/Synty/SidekickCharacters/Resources/Skeletons/SKEL_Default_Sidekick`
@@ -102,9 +104,9 @@ that database exists.
 2. Confirm the three dependency lines are green.
 3. **Browse** to one or more pack `.unitypackage` files.
 4. **Convert**. The panel reports extraction, then a live `part 15/165` count.
-5. When it finishes, it offers to restart the editor. Restarting loads the pack's color
-   schemes into the toolkit (the parts and materials are there without it). **Show parts**
-   jumps to the converted folder.
+5. When it finishes, the parts and the pack's colors are in. **Show parts** jumps to the
+   converted folder. (If the Sidekick Character Creator happened to be open during the convert,
+   the colors are held; the panel offers Try Again, Restart Now, or Restart Later.)
 6. Open the Sidekick toolkit; the pack's parts and colors are selectable.
 
 Converted parts are written under
@@ -120,23 +122,21 @@ menu like an official pack's. The toolkit ships color schemes only for the few p
 pre-loaded, so a Unity-only pack like Modern Civilians starts with none; the converter fills
 that in.
 
-The toolkit reads its color schemes only when the editor starts, so the schemes show up after
-the one editor restart the panel offers when a conversion finishes. The parts and materials
-are available immediately; only the color-menu entries wait for the restart. The reason for
-that restart is in [Limitations](#limitations).
+A conversion writes the schemes into the database as soon as it finishes, so they show up in
+the toolkit with no restart. The one case where that does not work is covered under
+[Limitations](#limitations).
 
 ## Limitations
 
-After a conversion, the editor restarts once before the converted pack's colors show up in the
-Sidekick toolkit. The parts and materials are there right away; only the color-menu entries
-wait for the restart.
+Colors are written into the Sidekick toolkit database when a conversion finishes, and appear
+with no restart. The catch: the toolkit holds that database open while its own window is open.
+If the Sidekick Character Creator is open during a conversion, the write is blocked; the panel
+says so and offers **Try Again** (close the Creator first), **Restart Now**, or **Restart Later**
+(the colors apply at the next editor startup). Parts and materials are in either way; only the
+color-menu entries depend on the database being free.
 
-That comes from a bug in the Sidekick toolkit, not the converter. The toolkit opens its color
-database at editor startup and holds the connection for the whole session, since its
-`CloseDatabase` never releases it. Nothing else can write that database while the editor is
-running, so the converter writes a pack's color schemes at the next startup, before the
-toolkit opens the file. That is the one window available, hence the restart. If Synty changes
-the toolkit to release the database, the restart goes away.
+Sidekick toolkit versions before 0.4.1 held the database open for the whole editor session, so on
+those the colors always fall back to the restart path.
 
 ## License
 

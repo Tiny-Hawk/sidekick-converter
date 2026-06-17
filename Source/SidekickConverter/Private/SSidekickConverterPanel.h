@@ -29,19 +29,25 @@ private:
 	FReply OnConvertAnotherClicked();
 	FReply OnShowInContentBrowserClicked();
 	FReply OnCloseClicked();
+	FReply OnTryColorsAgainClicked();
+	FReply OnRestartNowClicked();
+	FReply OnRestartLaterClicked();
 	bool PollProgress(float DeltaTime);
 	void FinishJob(bool bSuccess);
-	void PromptRestartToApplyColors();
+	bool ApplyColorsNow();
+	bool RunColorRetry(float DeltaTime);
 
 	bool DependenciesPresent() const;
 	bool CanConvert() const;
 	FText GetStatusText() const;
+	FSlateColor GetStatusColor() const;
 	FText GetPackageSummary() const;
 	FText GetDependencyText() const;
 	FSlateColor GetDependencyColor() const;
 	TOptional<float> GetProgressFraction() const;
 	EVisibility GetConvertVisibility() const;
 	EVisibility GetCompletionVisibility() const;
+	EVisibility GetColorActionVisibility() const;
 
 	TSharedPtr<SEditableTextBox> SkeletonBox;
 	TSharedPtr<SEditableTextBox> ReferenceBox;
@@ -56,4 +62,5 @@ private:
 	FText StatusText;
 	float ProgressFraction = 0.0f;
 	bool bSawDone = false;
+	bool bColorsLocked = false;
 };

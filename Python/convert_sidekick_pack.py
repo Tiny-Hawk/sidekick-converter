@@ -9,9 +9,8 @@ One pass, no Blender or FBX round-trip:
   4. Import the pack's ColorMap atlases and build a material instance per color scheme, then
      leave the scheme list in a manifest.
 
-The scheme list is left in a manifest. The database write happens later: the plugin's editor
-module runs register_color_schemes.py at the next editor startup, before the toolkit opens the
-database, which is why the editor restarts once after a conversion.
+The panel writes those schemes into the toolkit database when the conversion finishes. If the
+toolkit is holding the database open, the write falls back to the next editor startup.
 
 The shared skeleton, orientation reference part, and material come from an installed
 Sidekick free pack.
