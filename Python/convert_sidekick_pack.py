@@ -105,10 +105,15 @@ def extract_part_meshes(unitypackage_path):
         if not member.name.endswith("/asset"):
             continue
         unity_path = guid_to_path.get(member.name.split("/")[0], "")
-        # Only the pack's own outfit parts. The Species/Humans base body is shared
-        # infrastructure that ships with the free pack, so it is left untouched (and is
-        # the conform's orientation reference).
-        if not unity_path.lower().endswith(".fbx") or "/Resources/Meshes/Outfits/" not in unity_path:
+        # The pack's own part meshes: outfit pieces, plus a non-human species' base body
+        # (head/skull, eyes, teeth, base limbs) when the pack ships one. The shared Humans
+        # base body is pre-installed with the free pack and is the conform's orientation
+        # reference, so it stays skipped; every other Species/<X> base is the pack's own
+        # content and must come in, or that species has no head and shows None in the toolkit.
+        low = unity_path.lower()
+        in_outfits = "/resources/meshes/outfits/" in low
+        in_species = "/resources/meshes/species/" in low and "/resources/meshes/species/humans/" not in low
+        if not low.endswith(".fbx") or not (in_outfits or in_species):
             continue
 
         relative = unity_path[len("Assets/"):]              # Synty/.../Outfits/X/SK_....fbx
