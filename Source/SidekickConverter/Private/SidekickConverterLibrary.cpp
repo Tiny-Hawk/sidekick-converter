@@ -6,6 +6,11 @@
 #include "MeshDescription.h"
 #include "SkeletalMeshAttributes.h"
 #include "BoneWeights.h"
+#include "PhysicsEngine/PhysicsAsset.h"
+#include "PhysicsAssetUtils.h"
+#include "Misc/PackageName.h"
+#include "UObject/Package.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 using UE::AnimationCore::FBoneWeight;
 using UE::AnimationCore::FBoneWeights;
@@ -253,5 +258,53 @@ bool USidekickConverterLibrary::ConformToSharedSkeleton(USkeletalMesh* Mesh, USk
 	return true;
 #else
 	return false;
+#endif
+}
+
+UPhysicsAsset* USidekickConverterLibrary::CreatePhysicsAssetForMesh(USkeletalMesh* Mesh)
+{
+#if WITH_EDITOR
+	if (!Mesh)
+	{
+		return nullptr;
+	}
+
+	// Name and place the asset as <MeshName>_PhysicsAsset alongside the mesh, matching the
+	// per-mesh physics assets the official Unreal Sidekick packs ship. The Python caller deletes
+	// any prior asset of this name first, so here we always build a fresh one.
+	const FString MeshPackageName = Mesh->GetOutermost()->GetName();
+	const FString PackagePath = FPackageName::GetLongPackagePath(MeshPackageName);
+	const FString AssetName = Mesh->GetName() + TEXT("_PhysicsAsset");
+	const FString NewPackageName = PackagePath + TEXT("/") + AssetName;
+
+	UPackage* Package = CreatePackage(*NewPackageName);
+	if (!Package)
+	{
+		return nullptr;
+	}
+
+	UPhysicsAsset* PhysicsAsset = NewObject<UPhysicsAsset>(Package, *AssetName, RF_Public | RF_Standalone);
+	if (!PhysicsAsset)
+	{
+		return nullptr;
+	}
+
+	// Default parameters mirror the editor's "Create Physics Asset" auto-generation: one body per
+	// skinned bone above the minimum size, sized from the bone's vertices. bSetToMesh assigns it
+	// to the mesh's Physics Asset slot. Run after the conform so bodies fit the shared skeleton.
+	FPhysAssetCreateParams Params;
+	FText ErrorMessage;
+	// bShowProgress=false: the conversion runs headless (-unattended -nullrhi), so no Slate dialog.
+	if (!FPhysicsAssetUtils::CreateFromSkeletalMesh(PhysicsAsset, Mesh, Params, ErrorMessage, /*bSetToMesh=*/true, /*bShowProgress=*/false))
+	{
+		return nullptr;
+	}
+
+	FAssetRegistryModule::AssetCreated(PhysicsAsset);
+	PhysicsAsset->MarkPackageDirty();
+	Mesh->MarkPackageDirty();
+	return PhysicsAsset;
+#else
+	return nullptr;
 #endif
 }

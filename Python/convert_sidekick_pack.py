@@ -344,7 +344,20 @@ def run():
             failed.append(name)
             continue
         assign_material(mesh, pack_default_material.get(pack_of_part(game_dir), shared_material))
+
+        # Build a per-mesh physics asset like the official Unreal packs ship. Done after the
+        # conform so the bodies fit the shared skeleton; a prior one is removed first so a
+        # re-convert regenerates cleanly.
+        physics_path = "%s/%s_PhysicsAsset" % (game_dir, name)
+        if assets.does_asset_exist(physics_path):
+            assets.delete_asset(physics_path)
+        physics_asset = unreal.SidekickConverterLibrary.create_physics_asset_for_mesh(mesh)
+
         assets.save_asset(mesh.get_path_name(), only_if_is_dirty=False)
+        if physics_asset:
+            assets.save_asset(physics_asset.get_path_name(), only_if_is_dirty=False)
+        else:
+            log("WARN: physics asset not created for %s" % name)
 
         if orphan_skeleton and orphan_skeleton.get_path_name() != shared_skeleton.get_path_name():
             stem = orphan_skeleton.get_path_name().split(".")[0]
