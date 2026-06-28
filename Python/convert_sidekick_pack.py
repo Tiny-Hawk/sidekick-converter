@@ -110,10 +110,10 @@ def extract_part_meshes(unitypackage_path):
         # base body is pre-installed with the free pack and is the conform's orientation
         # reference, so it stays skipped; every other Species/<X> base is the pack's own
         # content and must come in, or that species has no head and shows None in the toolkit.
-        low = unity_path.lower()
-        in_outfits = "/resources/meshes/outfits/" in low
-        in_species = "/resources/meshes/species/" in low and "/resources/meshes/species/humans/" not in low
-        if not low.endswith(".fbx") or not (in_outfits or in_species):
+        lower_path = unity_path.lower()
+        in_outfits = "/resources/meshes/outfits/" in lower_path
+        in_species = "/resources/meshes/species/" in lower_path and "/resources/meshes/species/humans/" not in lower_path
+        if not lower_path.endswith(".fbx") or not (in_outfits or in_species):
             continue
 
         relative = unity_path[len("Assets/"):]              # Synty/.../Outfits/X/SK_....fbx
