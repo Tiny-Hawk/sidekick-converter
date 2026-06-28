@@ -47,6 +47,33 @@ DEFAULTS = {
 # The color atlas parameter on M_Default_Sidekick, set per scheme material instance.
 COLOR_TEXTURE_PARAM = "texture"
 
+# A part's file name ends in the pack's species code, e.g. SK_FANT_SKTN_01_10TORS_SN01. The
+# mesh suffix uses HU for the Human species whose database sk_species.code is HN; the rest match.
+SUFFIX_TO_SPECIES_CODE = {"HU": "HN", "HN": "HN", "GO": "GO", "SN": "SN", "EV": "EV", "ZB": "ZB", "RO": "RO"}
+
+
+def species_code_of_part(name):
+    """The sk_species.code a part belongs to, read from its file-name suffix, or None."""
+    match = re.search(r"_([A-Za-z]+)\d+$", name or "")
+    if not match:
+        return None
+    return SUFFIX_TO_SPECIES_CODE.get(match.group(1).upper())
+
+
+def dominant_species_code(part_names):
+    """The pack's species from its parts' name suffixes. A pack's own species parts carry its
+    code, while shared base parts read as Human, so prefer the most common non-Human code; with
+    none (a plain Human pack), fall back to Human."""
+    counts = {}
+    for name in part_names:
+        code = species_code_of_part(name)
+        if code:
+            counts[code] = counts.get(code, 0) + 1
+    non_human = {code: n for code, n in counts.items() if code != "HN"}
+    if non_human:
+        return max(non_human, key=non_human.get)
+    return "HN"
+
 
 def read_job():
     """job.txt is KEY=VALUE lines. PACKAGE may repeat (a batch of packs); SKELETON/
@@ -186,10 +213,11 @@ def scheme_name(colormap_asset):
     return ("%s %s" % (spaced, index)).strip()
 
 
-def extract_color_maps(unitypackage_path, pack_names):
-    """Pull the pack's ColorMap atlases (under Characters/<pack>/) into a scratch folder.
-    Returns (png path, asset name, scheme name, pack) per atlas. Only atlases whose pack
-    matches a converted outfit pack are taken, so the species' base skin maps are left alone."""
+def extract_color_maps(unitypackage_path, species_code):
+    """Pull the pack's ColorMap atlases (under Characters/<set>/) into a scratch folder. Returns
+    (png path, asset name, scheme name, character set, species code) per atlas. A pack's
+    .unitypackage carries only its own atlases, so every Characters/ atlas (the outfit theme sets
+    and the species/skin sets alike) belongs to this pack and is tagged with the pack's species."""
     archive = tarfile.open(unitypackage_path, "r:gz")
 
     guid_to_path = {}
@@ -207,16 +235,14 @@ def extract_color_maps(unitypackage_path, pack_names):
         segments = unity_path.split("/")
         if "Characters" not in segments:
             continue
-        pack = segments[segments.index("Characters") + 1]
-        if pack not in pack_names:
-            continue
+        character_set = segments[segments.index("Characters") + 1]
 
         asset_name = os.path.splitext(os.path.basename(unity_path))[0]
-        png_path = os.path.join(COLORMAP_TEMP, pack, os.path.basename(unity_path))
+        png_path = os.path.join(COLORMAP_TEMP, character_set, os.path.basename(unity_path))
         os.makedirs(os.path.dirname(png_path), exist_ok=True)
         with open(png_path, "wb") as out_file:
             out_file.write(archive.extractfile(member).read())
-        maps.append((png_path, asset_name, scheme_name(asset_name), pack))
+        maps.append((png_path, asset_name, scheme_name(asset_name), character_set, species_code))
 
     archive.close()
     return maps
@@ -269,7 +295,7 @@ def build_pack_schemes(color_maps, base_material):
     """Import each atlas and build its scheme material instance. Returns a default scheme
     material per pack so parts come in colored."""
     pack_default = {}
-    for png_path, asset_name, name, pack in color_maps:
+    for png_path, asset_name, name, pack, _species_code in color_maps:
         texture = import_color_map_texture(png_path, pack, asset_name)
         if not texture:
             continue
@@ -282,14 +308,14 @@ def build_pack_schemes(color_maps, base_material):
 def write_scheme_manifest(manifest):
     """Leave the schemes for register_color_schemes.py, which the plugin's module runs at the
     next editor startup to write them into the toolkit database, before the toolkit opens it.
-    The manifest is scheme_name<TAB>colormap.png lines."""
+    The manifest is scheme_name<TAB>colormap.png<TAB>species_code lines."""
     if not manifest:
         return
     if not os.path.isdir(JOB_DIR):
         os.makedirs(JOB_DIR)
     with open(SCHEME_MANIFEST, "w") as handle:
-        for name, png_path in manifest:
-            handle.write("%s\t%s\n" % (name, png_path))
+        for name, png_path, species_code in manifest:
+            handle.write("%s\t%s\t%s\n" % (name, png_path, species_code))
 
 
 def run():
@@ -308,24 +334,26 @@ def run():
         report_progress(0, 0, "DONE")
         return
 
-    # Extract every pack first so the progress total covers the whole batch.
+    # Extract every pack first so the progress total covers the whole batch. Each pack's species
+    # is read from its parts and tags that pack's color atlases, so a batch may mix species.
     report_progress(0, 0, "extracting")
     parts = []
-    for package in packages:
-        extracted = extract_part_meshes(package)
-        log("extracted %d part meshes from %s" % (len(extracted), os.path.basename(package)))
-        parts += extracted
-
-    pack_names = {pack_of_part(game_dir) for _, game_dir, _ in parts}
     color_maps = []
     for package in packages:
-        color_maps += extract_color_maps(package, pack_names)
+        extracted = extract_part_meshes(package)
+        species_code = dominant_species_code([name for _disk, _game_dir, name in extracted])
+        log("extracted %d part meshes from %s (species %s)" % (
+            len(extracted), os.path.basename(package), species_code))
+        parts += extracted
+        color_maps += extract_color_maps(package, species_code)
 
-    manifest = [(name, png_path) for png_path, _asset, name, _pack in color_maps]
+    manifest = [(name, png_path, species_code)
+                for png_path, _asset, name, _set, species_code in color_maps]
     write_scheme_manifest(manifest)
 
     pack_default_material = build_pack_schemes(color_maps, shared_material)
-    log("found %d color scheme(s) across %d pack(s)" % (len(manifest), len(pack_names)))
+    log("found %d color scheme(s) across %d character set(s)" % (
+        len(manifest), len({entry[3] for entry in color_maps})))
 
     total = len(parts)
     report_progress(0, total, "starting")
