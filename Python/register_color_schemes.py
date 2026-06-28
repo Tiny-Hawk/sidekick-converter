@@ -6,8 +6,9 @@ after a conversion with the toolkit closed, or at editor startup before the tool
 file. It retries with a fresh connection to ride out timing.
 
 From each scheme's ColorMap atlas it writes the Species (skin / robot plating) swatches under the
-pack's own species and the Outfit/Attachment swatches under the Human species (the shared pool) -
-whichever of those three groups the atlas actually fills. Materials and Elements are never written
+pack's own species - except Human, whose Species list is left as the base skin tones (a human pack
+only contributes Outfit/Attachment colors) - and the Outfit/Attachment swatches under the Human
+species (the shared pool) - whichever of those three groups the atlas actually fills. Materials and Elements are never written
 from an atlas; they are a base-curated set, and pack colors landing there would mis-file e.g. robot
 plating as an Element. To match the Unity tool, where the shared pools show for every species, each
 non-Human species the batch converts is then given Human's Outfit/Attachment/Material pools - keyed
@@ -220,6 +221,11 @@ def write_schemes(connection, schemes):
         if own_id != human_id:
             non_human_species.add(own_id)
         for group in REGISTER_GROUPS:
+            # Synty keeps the Human Species list as just the base skin tones; a human pack only adds
+            # Outfit/Attachment colors, so never write the Species group under Human (it would only
+            # duplicate the base skin tones). Non-Human species still get their own species colors.
+            if group == SPECIES_COLOR_GROUP and own_id == human_id:
+                continue
             props = properties[group]
             if not props:
                 continue
