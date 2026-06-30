@@ -35,6 +35,7 @@ public class SidekickConverter : ModuleRules
 				"AssetRegistry",
 				"WorkspaceMenuStructure",
 				"ContentBrowser",
+				"PhysicsUtilities",
 			});
 		}
 	}

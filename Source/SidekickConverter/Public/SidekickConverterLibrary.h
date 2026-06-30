@@ -6,6 +6,7 @@
 
 class USkeletalMesh;
 class USkeleton;
+class UPhysicsAsset;
 
 UCLASS()
 class SIDEKICKCONVERTER_API USidekickConverterLibrary : public UBlueprintFunctionLibrary
@@ -36,4 +37,14 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sidekick Converter")
 	static bool ConformToSharedSkeleton(USkeletalMesh* Mesh, USkeleton* SharedSkeleton, USkeletalMesh* OrientationReference);
+
+	/**
+	 * Creates a default-generated physics asset for a converted part, named <MeshName>_PhysicsAsset
+	 * next to the mesh and assigned to it, matching the per-mesh physics assets the official Unreal
+	 * Sidekick packs ship. This is the same auto-generation as the editor's "Create Physics Asset",
+	 * so run it after ConformToSharedSkeleton so the bodies fit the shared skeleton. Reuses an
+	 * existing asset of that name on a re-run. Returns the asset, or null on failure.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sidekick Converter")
+	static UPhysicsAsset* CreatePhysicsAssetForMesh(USkeletalMesh* Mesh);
 };
