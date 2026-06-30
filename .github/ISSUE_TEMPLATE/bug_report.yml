@@ -1,0 +1,84 @@
+name: Bug report
+description: Report something the converter does wrong
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The more exact the detail, the faster it gets fixed. Logs and the exact pack help most.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What went wrong, and what you expected instead.
+      placeholder: Converting Modern Civilians, the parts import but they twist at the elbow once an animation plays.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Point the panel at the pack's .unitypackage
+        2. Click Convert
+        3. Open the part in the Sidekick toolkit
+        4. See the issue
+    validations:
+      required: true
+  - type: input
+    id: pack
+    attributes:
+      label: Which pack
+      description: Modern Civilians and Fantasy Knights are the two the converter has been tested against. Other packs may surface new cases.
+      placeholder: e.g. Modern Civilians
+    validations:
+      required: true
+  - type: input
+    id: ue-version
+    attributes:
+      label: Unreal Engine version
+      placeholder: e.g. 5.7.0
+    validations:
+      required: true
+  - type: dropdown
+    id: toolkit-version
+    attributes:
+      label: Sidekick Character Tool version
+      description: Shown in the Plugins window or the plugin's .uplugin. Color registration behaves differently across versions, so this matters.
+      options:
+        - "0.4.2"
+        - "0.4.1"
+        - "0.4.0"
+        - Older than 0.4.0
+        - Not installed or unsure
+    validations:
+      required: true
+  - type: input
+    id: converter-version
+    attributes:
+      label: Sidekick Converter version
+      placeholder: e.g. v0.1.3
+    validations:
+      required: true
+  - type: dropdown
+    id: dependencies
+    attributes:
+      label: Were the three dependency lines in the panel green?
+      description: Skeleton, base mesh, and material. The panel shows each in green when it resolves, red when it does not.
+      options:
+        - All three green
+        - One or more were red
+        - Did not check
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log output
+      description: Relevant lines from the Output Log, or the db_register.log written next to the pack. Pasted here it formats as code, so no backticks needed.
+      render: shell
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: Screenshots, the part name, whatever else helps.

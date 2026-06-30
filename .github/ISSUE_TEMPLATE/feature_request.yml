@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest an improvement or a new capability
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is the problem
+      description: The thing that is missing or harder than it should be. Leave blank if the idea is not tied to a specific problem.
+      placeholder: Converting a pack with several outfits, I have to ...
+  - type: textarea
+    id: solution
+    attributes:
+      label: What you would like it to do
+      description: The behavior you want.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Other ways you thought about solving it, if any.
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: Mockups, references, related packs, whatever helps.
